@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"strings"
 	"sync"
 )
 
@@ -53,13 +54,13 @@ func (m *Metrics) WritePrometheus(w io.Writer) {
 	}
 	sort.Strings(keys)
 	for _, k := range keys {
-		kind, series := k[:7], k[8:]
+		kind, series, _ := strings.Cut(k, "\x00")
 		typ, val := "counter", m.counters[series]
-		if kind == "gauge\x00" {
+		if kind == "gauge" {
 			typ, val = "gauge", m.gauges[series]
 		}
 		name, labels := splitSeries(series)
-		fmt.Fprintf(w, "# TYPE %s %s\n%s%s %v\n", name, typ, name, labels, val)
+		_, _ = fmt.Fprintf(w, "# TYPE %s %s\n%s%s %v\n", name, typ, name, labels, val)
 	}
 }
 
