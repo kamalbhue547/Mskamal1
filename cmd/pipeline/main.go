@@ -110,7 +110,6 @@ func (j *job) train(_ context.Context) error {
 		Epochs:       j.cfg.Epochs,
 		LearningRate: j.cfg.LearningRate,
 		L2:           j.cfg.L2,
-		Seed:         j.cfg.Seed,
 	})
 	if err != nil {
 		return err

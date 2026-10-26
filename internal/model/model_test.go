@@ -16,7 +16,7 @@ func trainDemo(t *testing.T) (*Artifact, *ingest.Dataset) {
 		t.Fatal(err)
 	}
 	train, _ := SplitTrainTest(ds, 0.2, 42)
-	a, err := Train(train, TrainOptions{Epochs: 300, LearningRate: 0.1, L2: 0.001, Seed: 42})
+	a, err := Train(train, TrainOptions{Epochs: 300, LearningRate: 0.1, L2: 0.001})
 	if err != nil {
 		t.Fatal(err)
 	}

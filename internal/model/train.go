@@ -14,7 +14,6 @@ type TrainOptions struct {
 	Epochs       int
 	LearningRate float64
 	L2           float64 // L2 regularisation strength (0 disables)
-	Seed         int64
 }
 
 // SplitTrainTest deterministically shuffles ds and splits it by fraction.

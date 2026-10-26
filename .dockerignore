@@ -1,0 +1,16 @@
+# Keep the build context small and reproducible. Note: models/demo/model.json
+# must stay included — the runtime stage copies it from the context.
+.git
+.github
+bin/
+third_party/
+data/
+notebooks/
+docs/
+coverage.out
+coverage.html
+models/**/*.onnx
+models/**/*.json
+!models/demo/model.json
+*.md
+!README.md
