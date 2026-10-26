@@ -1,0 +1,141 @@
+openapi: 3.1.0
+info:
+  title: mskamal1 inference API
+  version: 1.0.0
+  description: >
+    Serving API for models trained by cmd/pipeline (Go) or exported by
+    scripts/train_export_onnx.py (Python -> ONNX). The same contract is
+    honoured by both the pure-Go and ONNX Runtime backends.
+servers:
+  - url: http://localhost:8080
+paths:
+  /healthz:
+    get:
+      summary: Liveness probe
+      operationId: health
+      responses:
+        "200":
+          description: Service is up
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Status"
+  /readyz:
+    get:
+      summary: Readiness probe
+      operationId: ready
+      responses:
+        "200":
+          description: Service is ready (model loaded at startup; startup fails otherwise)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Status"
+  /v1/model:
+    get:
+      summary: Loaded model metadata
+      operationId: modelInfo
+      responses:
+        "200":
+          description: Model name, backend, feature names and classes
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModelInfo"
+  /v1/predict:
+    post:
+      summary: Run one prediction
+      operationId: predict
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PredictRequest"
+            example:
+              features: [-2.0, -2.0, -2.0, -2.0]
+      responses:
+        "200":
+          description: Prediction with class probabilities
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PredictResponse"
+        "400":
+          description: Invalid JSON or wrong number of features
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "413":
+          description: Request body over 1 MiB
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Inference failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /metrics:
+    get:
+      summary: Prometheus metrics
+      operationId: metrics
+      responses:
+        "200":
+          description: Prometheus text exposition format
+          content:
+            text/plain:
+              schema:
+                type: string
+components:
+  schemas:
+    Status:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          example: ok
+    ModelInfo:
+      type: object
+      required: [name, version, backend, feature_names, classes]
+      properties:
+        name: {type: string, example: demo-softmax}
+        version: {type: string, example: 1.0.0}
+        backend: {type: string, enum: [go, onnx], example: go}
+        feature_names:
+          type: array
+          items: {type: string}
+          example: [feature_1, feature_2, feature_3, feature_4]
+        classes:
+          type: array
+          items: {type: string}
+          example: [class_a, class_b, class_c]
+    PredictRequest:
+      type: object
+      required: [features]
+      description: Raw (unscaled) features; length must match ModelInfo.feature_names.
+      properties:
+        features:
+          type: array
+          items: {type: number}
+    PredictResponse:
+      type: object
+      required: [label, class_index, probabilities, model, backend]
+      properties:
+        label: {type: string, example: class_a}
+        class_index: {type: integer, example: 0}
+        probabilities:
+          type: array
+          items: {type: number}
+          description: Softmax probabilities in ModelInfo.classes order; sums to 1.
+        model: {type: string, example: demo-softmax}
+        backend: {type: string, enum: [go, onnx]}
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: {type: string}

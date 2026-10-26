@@ -1,0 +1,10 @@
+{
+  "input_path": "data/raw/sample.csv",
+  "model_out_dir": "models/demo",
+  "processed_dir": "data/processed",
+  "epochs": 300,
+  "learning_rate": 0.1,
+  "l2": 0.001,
+  "test_fraction": 0.2,
+  "seed": 42
+}
