@@ -1,0 +1,10 @@
+{
+  "addr": ":8080",
+  "model_path": "models/demo/model.json",
+  "onnx_path": "",
+  "onnx_lib_path": "",
+  "log_level": "info",
+  "read_timeout_seconds": 10,
+  "write_timeout_seconds": 10,
+  "shutdown_timeout_seconds": 10
+}

@@ -1,0 +1,14 @@
+# golangci-lint configuration — the bar set by the reference repos in
+# docs/go-data-ml-research.md (Bento / Redpanda Connect: golangci-lint + gofumpt).
+version: "2"
+linters:
+  default: none
+  enable:
+    - govet
+    - staticcheck
+    - errcheck
+    - ineffassign
+    - unused
+formatters:
+  enable:
+    - gofumpt

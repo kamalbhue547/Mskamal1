@@ -1,0 +1,31 @@
+# Binaries
+/bin/
+*.exe
+*.test
+*.out
+coverage.out
+coverage.html
+
+# Data: never commit datasets (see docs/architecture.md). The small synthetic
+# sample is the one deliberate exception so the demo runs out of the box.
+/data/interim/*
+/data/processed/*
+!/data/interim/.gitkeep
+!/data/processed/.gitkeep
+/data/raw/*.csv
+!/data/raw/sample.csv
+
+# Model artifacts: weights belong in object storage / DVC / Git LFS, not Git.
+# The tiny demo model.json is committed on purpose; ONNX files are regenerated
+# with scripts/train_export_onnx.py and never committed.
+/models/**/*.onnx
+/models/**/report.json
+
+# Local ONNX Runtime shared library (scripts/download_onnxruntime.sh)
+/third_party/
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+.env

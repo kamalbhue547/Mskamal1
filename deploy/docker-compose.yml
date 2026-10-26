@@ -1,0 +1,12 @@
+services:
+  serve:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    ports:
+      - "8080:8080"
+    # Swap in a locally trained model without rebuilding the image:
+    # volumes:
+    #   - ../models/demo/model.json:/models/demo/model.json:ro
+    environment:
+      LOG_LEVEL: info

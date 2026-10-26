@@ -1,0 +1,97 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "arena/**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: vet + test -race + build (Go ${{ matrix.go }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        go: ["1.26"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: ${{ matrix.go }}
+          cache: true
+      - name: Check formatting (gofumpt)
+        run: |
+          go install mvdan.cc/gofumpt@latest
+          test -z "$(gofumpt -l .)" || { gofumpt -l .; echo "::error::run 'make fmt'"; exit 1; }
+      - name: Vet
+        run: go vet ./...
+      - name: Test with race detector and coverage
+        run: go test -race -coverprofile=coverage.out ./...
+      - name: Build all binaries (pure Go)
+        run: CGO_ENABLED=0 go build -o bin/ ./cmd/...
+      - name: Smoke test the vertical slice
+        run: |
+          ./bin/pipeline -data data/raw/sample.csv -out models/demo
+          ./bin/serve -model models/demo/model.json -addr :8080 &
+          trap 'kill %1 || true' EXIT
+          for i in $(seq 1 30); do curl -fsS localhost:8080/healthz && break || sleep 1; done
+          curl -fsS localhost:8080/v1/model
+          curl -fsS -X POST localhost:8080/v1/predict -H 'Content-Type: application/json' \
+            -d '{"features":[-2,-2,-2,-2]}'
+
+  lint:
+    name: golangci-lint + staticcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26"
+          cache: true
+      - uses: golangci/golangci-lint-action@v9
+        with:
+          version: latest
+      - name: staticcheck (onnx-tagged code included)
+        run: |
+          go install honnef.co/go/tools/cmd/staticcheck@latest
+          staticcheck ./...
+          CGO_ENABLED=1 staticcheck -tags onnx ./internal/inference/
+
+  onnx-parity:
+    name: Python -> ONNX -> Go parity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26"
+          cache: true
+      - name: Install Python deps (onnxruntime wheel also provides libonnxruntime)
+        run: pip install numpy onnx onnxruntime
+      - name: Train in Python and export ONNX
+        run: python3 scripts/train_export_onnx.py --data data/raw/sample.csv --out-dir models/demo
+      - name: Go ONNX predictor must match the pure-Go predictor
+        env:
+          ONNX_MODEL_PATH: models/demo/model.onnx
+          MODEL_JSON_PATH: models/demo/model.json
+        run: |
+          echo "ONNX_LIB_PATH=$(python3 -c 'import onnxruntime,os,glob; print(glob.glob(os.path.join(os.path.dirname(onnxruntime.__file__),"capi","libonnxruntime.so*"))[0])')" >> "$GITHUB_ENV"
+          # re-export for this step's test run
+          export ONNX_LIB_PATH="$(python3 -c 'import onnxruntime,os,glob; print(glob.glob(os.path.join(os.path.dirname(onnxruntime.__file__),"capi","libonnxruntime.so*"))[0])')"
+          CGO_ENABLED=1 go test -tags onnx ./internal/inference/ -run TestONNXParity -v
+      - name: Serve through ONNX Runtime and predict
+        run: |
+          export ONNX_LIB_PATH="$(python3 -c 'import onnxruntime,os,glob; print(glob.glob(os.path.join(os.path.dirname(onnxruntime.__file__),"capi","libonnxruntime.so*"))[0])')"
+          CGO_ENABLED=1 go build -tags onnx -o bin/serve-onnx ./cmd/serve
+          ./bin/serve-onnx -model models/demo/model.json -onnx models/demo/model.onnx -onnx-lib "$ONNX_LIB_PATH" -addr :8081 &
+          trap 'kill %1 || true' EXIT
+          for i in $(seq 1 30); do curl -fsS localhost:8081/healthz && break || sleep 1; done
+          curl -fsS localhost:8081/v1/model
+          curl -fsS -X POST localhost:8081/v1/predict -H 'Content-Type: application/json' \
+            -d '{"features":[2,-1,2,-1]}'
